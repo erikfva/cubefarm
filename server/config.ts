@@ -2,6 +2,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+// A .env in the working folder fills in SWARM_* variables for local runs (real environment wins).
+// Optional: no file is fine. SWARM_ENV_FILE points at another file.
+try {
+  process.loadEnvFile(process.env.SWARM_ENV_FILE ?? path.join(process.cwd(), '.env'));
+} catch {
+  // no .env: the environment alone is enough
+}
+
 export const PORT = Number(process.env.SWARM_PORT ?? 4317);
 // package.json sits one folder up both from server/ and from the published dist-server/.
 export const VERSION: string = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '..', 'package.json'), 'utf8')).version;

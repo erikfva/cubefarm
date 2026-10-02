@@ -11,6 +11,12 @@ import { parseArgs } from 'node:util';
 
 const MIN_NODE = 22;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// A .env in the working folder fills in SWARM_* variables (real environment wins). Optional: no file is fine.
+try {
+  process.loadEnvFile(process.env.SWARM_ENV_FILE ?? path.join(process.cwd(), '.env'));
+} catch {
+  // no .env: the environment alone is enough
+}
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 const HELP = `
