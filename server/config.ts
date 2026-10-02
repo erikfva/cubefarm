@@ -13,6 +13,35 @@ export const WORKSPACE_ROOT = path.join(HOME_DIR, 'workspaces');
 export const DEMO = process.argv.includes('--demo') || process.env.SWARM_DEMO === '1' || process.env.SWARM_DEMO === 'true';
 export const STATE_FILE = path.join(HOME_DIR, DEMO ? 'demo-state.json' : 'state.json');
 
+// A custom Anthropic-compatible endpoint for agents (e.g. a LiteLLM gateway on a VPS), instead of the Claude
+// subscription login. Set SWARM_ANTHROPIC_BASE_URL + SWARM_ANTHROPIC_AUTH_TOKEN before starting the office; see
+// docs/how-it-works.md ("Models and usage"). Unset: agents run on the subscription, as before. Read per call (not
+// once at import) so tests can set and clear them.
+const swarmVar = (name: string) => (process.env[name] ?? '').trim();
+export const hasGateway = () => swarmVar('SWARM_ANTHROPIC_BASE_URL') !== '' && swarmVar('SWARM_ANTHROPIC_AUTH_TOKEN') !== '';
+/** Half of a gateway pair without the other: a setup mistake worth warning about at startup. */
+export const hasPartialGateway = () => !hasGateway() && (swarmVar('SWARM_ANTHROPIC_BASE_URL') !== '' || swarmVar('SWARM_ANTHROPIC_AUTH_TOKEN') !== '');
+
+/**
+ * Env vars injected into every agent's Claude Code after the office strips inherited ANTHROPIC_* / CLAUDE_*, so the
+ * agent talks to the gateway instead of the subscription. Empty when no gateway is configured.
+ */
+export function gatewayEnv(): Record<string, string> {
+  if (!hasGateway()) return {};
+  return {
+    ANTHROPIC_BASE_URL: swarmVar('SWARM_ANTHROPIC_BASE_URL'),
+    ANTHROPIC_AUTH_TOKEN: swarmVar('SWARM_ANTHROPIC_AUTH_TOKEN'),
+    ANTHROPIC_DEFAULT_SONNET_MODEL: swarmVar('SWARM_ANTHROPIC_DEFAULT_SONNET_MODEL') || 'claude-sonnet',
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: swarmVar('SWARM_ANTHROPIC_DEFAULT_HAIKU_MODEL') || 'claude-haiku',
+    ANTHROPIC_DEFAULT_OPUS_MODEL: swarmVar('SWARM_ANTHROPIC_DEFAULT_OPUS_MODEL') || 'claude-opus',
+    // Gateway aliases aren't real Claude models, so there's no fixed context window to declare client-side.
+    CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '1',
+  };
+}
+
+/** The model agents ask for. SWARM_DEFAULT_MODEL overrides the built-in default (it must exist on the gateway). */
+export const defaultModel = () => swarmVar('SWARM_DEFAULT_MODEL') || 'claude-opus-5-5';
+
 // How often each connected repo's issues and PRs are refreshed from GitHub.
 export const SYNC_INTERVAL_MS = 45_000;
 // How often idle agents on auto-assign floors look for new work.

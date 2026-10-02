@@ -5,7 +5,7 @@ import type { AgentCli, AgentRole, EffortLevel, LogKind } from '../shared/types.
 import type { OfficeTools } from './ceo.ts';
 import type { UsageWarning } from './pacing.ts';
 import type { AgentTerminal } from './terminal.ts';
-import { VERSION } from './config.ts';
+import { VERSION, gatewayEnv } from './config.ts';
 
 // One Claude Code instance (via the Claude Agent SDK) working one issue in its own git worktree.
 // The CEO runs through here too, with the office tools instead of a shell.
@@ -308,6 +308,8 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
     if (/^(ANTHROPIC_|CLAUDE)/i.test(k) && k !== 'CLAUDE_CONFIG_DIR') continue;
     env[k] = v;
   }
+  // A configured gateway (SWARM_ANTHROPIC_*) puts the agent on it instead of the subscription login.
+  Object.assign(env, gatewayEnv());
   env.CLAUDE_AGENT_SDK_CLIENT_APP = `cubefarm/${VERSION}`;
 
   const mcpServers: Options['mcpServers'] = {};

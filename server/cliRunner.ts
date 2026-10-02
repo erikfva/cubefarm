@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Request, Response } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { HOME_DIR } from './config.ts';
+import { HOME_DIR, gatewayEnv } from './config.ts';
 import { cliLabel, CODEX_HOOK_SOURCE, codexThread, commandFor, hookReviewKey, interruptions, isCli, launchArgs, NOTIFY_SOURCE, OPENCODE_PLUGIN_SOURCE, STATUSLINE_SOURCE, trustKey } from './clis.ts';
 import { adoptPty, discardPty, hooksReady, keeperHookUrl, keeperPid, leaveKeeper, spawnPty, startKeeper, terminalsAvailable, type Pty } from './ptyClient.ts';
 import {
@@ -663,7 +663,8 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     if (/^(NO_COLOR|FORCE_COLOR|TERM_PROGRAM|TERM_PROGRAM_VERSION|CODEX_THREAD_ID|OPENCODE_CONFIG_CONTENT)$/i.test(k)) continue;
     env[k] = v;
   }
-  Object.assign(env, { TERM: 'xterm-256color', COLORTERM: 'truecolor' }, launch.env);
+  // A configured gateway (SWARM_ANTHROPIC_*) puts the agent on it instead of the subscription login.
+  Object.assign(env, gatewayEnv(), { TERM: 'xterm-256color', COLORTERM: 'truecolor' }, launch.env);
 
   if (cli === 'claude') cb.sessionId(sessionId);
   term.note(`── ${label}${opts.label ? ` · ${opts.label}` : ''} ──`);
