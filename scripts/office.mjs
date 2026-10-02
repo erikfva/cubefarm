@@ -27,6 +27,14 @@ const HELP = `
 
 const root = path.resolve(import.meta.dirname, '..');
 const WIN = process.platform === 'win32';
+
+// The launcher's own SWARM_* variables come from the environment and the same .env the server reads (see
+// server/config.ts): SWARM_PORT, SWARM_CLIENT_PORT and SWARM_HOME for the dev setup. Real environment wins.
+try {
+  process.loadEnvFile(process.env.SWARM_ENV_FILE ?? path.join(root, '.env'));
+} catch {
+  // no .env: the environment alone is enough
+}
 // How long the server gets to stop its previews and exit before its process tree is killed.
 const STOP_TIMEOUT_MS = 20_000;
 // --no-save: installs what the pulled package.json and lockfile say without rewriting the lockfile (another npm

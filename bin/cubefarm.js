@@ -11,6 +11,12 @@ import { parseArgs } from 'node:util';
 
 const MIN_NODE = 22;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// A .env in the working folder fills in SWARM_* variables (real environment wins). Optional: no file is fine.
+try {
+  process.loadEnvFile(process.env.SWARM_ENV_FILE ?? path.join(process.cwd(), '.env'));
+} catch {
+  // no .env: the environment alone is enough
+}
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 const HELP = `
@@ -95,11 +101,22 @@ function claudeBinary() {
   return null;
 }
 
-// Like the agents: no API keys or settings inherited from a Claude Code session this was started from.
+// Like the agents: no API keys or settings inherited from a Claude Code session this was started from. The gateway's
+// own SWARM_ANTHROPIC_* pair survives the strip untouched, so the office it starts can pass it on to the agents.
 function claudeEnv() {
   const env = {};
-  for (const [k, v] of Object.entries(process.env)) if (!/^(ANTHROPIC_|CLAUDE)/i.test(k) || k === 'CLAUDE_CONFIG_DIR') env[k] = v;
+  for (const [k, v] of Object.entries(process.env)) {
+    if (/^(ANTHROPIC_|CLAUDE)/i.test(k) && k !== 'CLAUDE_CONFIG_DIR' && !/^SWARM_ANTHROPIC_/i.test(k)) continue;
+    env[k] = v;
+  }
   return env;
+}
+
+// A custom Anthropic-compatible endpoint for agents (e.g. a LiteLLM gateway), instead of the Claude subscription.
+function gateway() {
+  const base = (process.env.SWARM_ANTHROPIC_BASE_URL ?? '').trim();
+  const token = (process.env.SWARM_ANTHROPIC_AUTH_TOKEN ?? '').trim();
+  return { configured: base !== '' && token !== '', partial: (base !== '' || token !== '') && !(base !== '' && token !== '') };
 }
 
 // ---------- checks ----------
@@ -120,10 +137,19 @@ function checks() {
     out.push({ name: 'GitHub CLI', ok, detail: ok ? 'signed in' : 'not signed in', fix: 'run: gh auth login' });
   }
 
+  const gw = gateway();
+  if (gw.configured) {
+    out.push({ name: 'Claude', ok: true, detail: `custom endpoint (${process.env.SWARM_ANTHROPIC_BASE_URL})` });
+  } else if (gw.partial) {
+    out.push({ name: 'Claude', ok: false, fix: 'set both SWARM_ANTHROPIC_BASE_URL and SWARM_ANTHROPIC_AUTH_TOKEN, or neither (for the subscription login)' });
+  }
+
   const claude = claudeBinary();
   if (!claude) {
     out.push({ name: 'Claude Code', ok: false, fix: `reinstall cubefarm: Claude Code for ${process.platform}-${process.arch} is missing` });
-  } else {
+  } else if (gw.configured) {
+    out.push({ name: 'Claude Code', ok: true, detail: 'bundled CLI (agents use the gateway, no login needed)' });
+  } else if (!gw.partial) {
     let status = null;
     try {
       status = JSON.parse(sh(claude, ['auth', 'status', '--json'], claudeEnv()).stdout);

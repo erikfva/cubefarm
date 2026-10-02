@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import type { Backend } from './backend.ts';
 import type { LogEntry, SessionHandle, SessionResult } from './agentRunner.ts';
 import type { PrDetails } from './github.ts';
-import { defaultProjectsDir, HOME_DIR, LOG_BUFFER, SCHEDULER_INTERVAL_MS, STATE_FILE, SYNC_INTERVAL_MS, WORKSPACE_ROOT } from './config.ts';
+import { defaultModel, defaultProjectsDir, HOME_DIR, LOG_BUFFER, SCHEDULER_INTERVAL_MS, STATE_FILE, SYNC_INTERVAL_MS, WORKSPACE_ROOT } from './config.ts';
 import { ceoJobPrompt, ceoSystemPrompt, createOfficeTools, IssueCap, jobLabel, planRoute, specialtyLabel, specialtySlug, type CeoJob, type OfficeTools } from './ceo.ts';
 import { HttpError } from './httpError.ts';
 import { CHECKS_ALERT_MS, MAX_MERGE_FIXES, MERGE_RETRY_MS, mergeStep } from './mergeGate.ts';
@@ -209,11 +209,11 @@ const lookFor = (name: string): AgentLook => (FEMININE_NAMES.has(name.trim().spl
 const LOOKS: AgentLook[] = ['feminine', 'masculine'];
 const MAX_DESKS: Record<AgentRole, number> = { dev: 12, qa: 3, ceo: 1 };
 const MAX_QA_ROUNDS = 3;
-// Every agent runs Claude Opus 5.5 at medium effort unless the manager overrides it.
-const DEFAULT_MODEL = 'claude-opus-5-5';
+// Every agent runs this model at medium effort unless the manager overrides it (SWARM_DEFAULT_MODEL can point it at
+// a gateway alias instead of the subscription's model). The CEO thinks harder, at xhigh effort.
+const DEFAULT_MODEL = defaultModel();
 const EFFORTS: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
-// The CEO thinks harder than the staff: Opus 5.5 at xhigh effort unless the manager changes it.
-const CEO_MODEL = 'claude-opus-5-5';
+const CEO_MODEL = defaultModel();
 const CEO_EFFORT: EffortLevel = 'xhigh';
 const CEO_NAME = 'Morgan';
 // The CEO's own folder: its notes about the company live here. Repos are read through their clones.

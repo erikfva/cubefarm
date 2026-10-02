@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer } from 'ws';
-import { DEMO, PORT, STATE_FILE, WORKSPACE_ROOT } from './config.ts';
+import { DEMO, hasGateway, hasPartialGateway, PORT, STATE_FILE, WORKSPACE_ROOT } from './config.ts';
 import { realBackend } from './backend.ts';
 import { handleHook, handleMcp, setOfficeUrl } from './cliRunner.ts';
 import { createDemoBackend } from './demo.ts';
@@ -191,7 +191,11 @@ server.listen(PORT, '127.0.0.1', () => {
   setOfficeUrl(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
   console.log(`\n  🏢 cubefarm on http://localhost:${PORT}${DEMO ? '  (DEMO MODE: fake GitHub + fake agents)' : ''}`);
   console.log(`     state: ${STATE_FILE}`);
-  console.log(`     workspaces: ${WORKSPACE_ROOT}\n`);
+  console.log(`     workspaces: ${WORKSPACE_ROOT}`);
+  // A gateway pair without its other half leaves agents with neither billing: say so before they fail to start.
+  if (!DEMO && hasPartialGateway()) console.log('     ⚠ SWARM_ANTHROPIC_BASE_URL is set without SWARM_ANTHROPIC_AUTH_TOKEN (or the reverse): agents fall back to the subscription login.');
+  else if (!DEMO && hasGateway()) console.log(`     agents: custom endpoint (${(process.env.SWARM_ANTHROPIC_BASE_URL ?? '').trim()})`);
+  console.log('');
 });
 
 // Floors' apps don't outlive the office. (A hard kill skips this; the next start clears the orphans.) Agents' CLIs
